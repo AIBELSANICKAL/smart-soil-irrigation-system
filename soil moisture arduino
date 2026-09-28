@@ -1,0 +1,150 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// =====================================
+// PIN DEFINITIONS
+// =====================================
+
+#define SOIL_PIN PA0
+
+// L298N motor driver
+#define MOTOR_IN1 PA8
+
+// =====================================
+// LCD
+// =====================================
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// =====================================
+// SOIL SENSOR DEMO CALIBRATION
+// =====================================
+
+#define DRY_VALUE 856
+#define WET_VALUE 674
+
+// Pump turns ON below 40%
+#define MOISTURE_LIMIT 40
+
+// =====================================
+// DELAYS
+// =====================================
+
+#define STARTUP_DELAY 2000
+#define FIRST_CHECK_DELAY 2000
+#define SENSOR_CHECK_DELAY 3000
+
+
+void setup()
+{
+  // Soil sensor
+  pinMode(SOIL_PIN, INPUT_ANALOG);
+
+  // L298N IN1
+  pinMode(MOTOR_IN1, OUTPUT);
+
+  // Pump OFF at startup
+  digitalWrite(MOTOR_IN1, LOW);
+
+  // LCD initialization
+  lcd.init();
+  lcd.backlight();
+
+  // =====================================
+  // STARTUP SCREEN
+  // =====================================
+
+  lcd.clear();
+
+  lcd.setCursor(0, 0);
+  lcd.print("SOIL IRRIGATION");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Starting...");
+
+  delay(STARTUP_DELAY);
+
+  // =====================================
+  // FIRST SOIL CHECK
+  // =====================================
+
+  lcd.clear();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Checking Soil");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Please Wait...");
+
+  delay(FIRST_CHECK_DELAY);
+
+  lcd.clear();
+}
+
+
+void loop()
+{
+  // =====================================
+  // READ SOIL SENSOR
+  // =====================================
+
+  int sensorValue = analogRead(SOIL_PIN);
+
+
+  // =====================================
+  // CONVERT TO MOISTURE %
+  // =====================================
+
+  int moisture = map(sensorValue,
+                     DRY_VALUE,
+                     WET_VALUE,
+                     0,
+                     100);
+
+  moisture = constrain(moisture, 0, 100);
+
+
+  // =====================================
+  // DRY SOIL → PUMP ON
+  // =====================================
+
+  if (moisture < MOISTURE_LIMIT)
+  {
+    // L298N IN1 HIGH
+    digitalWrite(MOTOR_IN1, HIGH);
+
+    lcd.setCursor(0, 0);
+    lcd.print("Moisture: ");
+    lcd.print(moisture);
+    lcd.print("%   ");
+
+    lcd.setCursor(0, 1);
+    lcd.print("Pump: ON       ");
+  }
+
+
+  // =====================================
+  // WET SOIL → PUMP OFF
+  // =====================================
+
+  else
+  {
+    // L298N IN1 LOW
+    digitalWrite(MOTOR_IN1, LOW);
+
+    lcd.setCursor(0, 0);
+    lcd.print("Moisture: ");
+    lcd.print(moisture);
+    lcd.print("%   ");
+
+    lcd.setCursor(0, 1);
+    lcd.print("Pump: OFF      ");
+  }
+
+
+  // =====================================
+  // WAIT BEFORE NEXT CHECK
+  // =====================================
+
+  delay(SENSOR_CHECK_DELAY);
+}
